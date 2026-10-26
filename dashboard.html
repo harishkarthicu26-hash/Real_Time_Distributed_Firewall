@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>Threat Intelligence Radix Engine</title>
+    <style>
+        :root {
+            --bg-base: #060b14;
+            --panel-bg: #0d1527;
+            --border-light: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #64748b;
+            --accent-blue: #3b82f6;
+            --accent-cyan: #06b6d4;
+            --status-green: #10b981;
+            --status-red: #ef4444;
+            --cidr-red: #f87171;
+            --mask-blue: #60a5fa;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-base);
+            color: var(--text-main);
+        }
+
+        .navbar {
+            background: #04080f;
+            padding: 16px 32px;
+            border-bottom: 1px solid var(--border-light);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .navbar h1 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+
+        .nav-info {
+            font-size: 13px;
+            color: var(--text-muted);
+            font-family: monospace;
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .badge {
+            background: rgba(59, 130, 246, 0.12);
+            color: var(--mask-blue);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-weight: 600;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .container {
+            padding: 24px 32px;
+            max-width: 1650px;
+            margin: 0 auto;
+        }
+
+        .kpi-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .kpi-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .kpi-card h3 {
+            margin: 0 0 10px 0;
+            font-size: 11px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+        }
+
+        .kpi-value {
+            font-size: 28px;
+            font-weight: 600;
+            font-family: monospace;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .panel-header h2 {
+            margin: 0;
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #94a3b8;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        input,
+        button {
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border-light);
+            background: #060b14;
+            color: white;
+            font-size: 12px;
+            outline: none;
+            font-family: monospace;
+        }
+
+        input:focus {
+            border-color: var(--accent-blue);
+        }
+
+        button {
+            background: var(--border-light);
+            border: none;
+            cursor: pointer;
+            transition: 0.2s;
+            font-family: sans-serif;
+            font-weight: 600;
+        }
+
+        button:hover {
+            background: #334155;
+        }
+
+        .btn-blue {
+            background: #1d4ed8;
+        }
+
+        .btn-blue:hover {
+            background: #2563eb;
+        }
+
+        .btn-red {
+            background: rgba(239, 68, 68, 0.12);
+            color: var(--status-red);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-red:hover {
+            background: var(--status-red);
+            color: white;
+        }
+
+        .btn-active {
+            background: #0284c7;
+            color: white;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            text-align: left;
+        }
+
+        th,
+        td {
+            padding: 11px 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            font-family: monospace;
+        }
+
+        th {
+            color: var(--text-muted);
+            font-family: sans-serif;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 10px;
+            letter-spacing: 1px;
+            position: sticky;
+            top: 0;
+            background: var(--panel-bg);
+        }
+
+        tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .t-num {
+            color: var(--text-muted);
+            width: 40px;
+        }
+
+        .t-cidr {
+            color: var(--cidr-red);
+            font-weight: 600;
+        }
+
+        .t-mask {
+            color: var(--mask-blue);
+        }
+
+        .t-sig {
+            color: #e2e8f0;
+        }
+
+        .t-bin {
+            color: var(--text-muted);
+        }
+
+        .bit-strip {
+            display: flex;
+            gap: 3px;
+            margin: 12px 0;
+            background: #060b14;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid var(--border-light);
+            overflow-x: auto;
+        }
+
+        .bit {
+            flex: 1;
+            text-align: center;
+            padding: 6px 0;
+            font-family: monospace;
+            font-size: 11px;
+            font-weight: 700;
+            border-radius: 3px;
+            background: #1e293b;
+            color: var(--text-muted);
+            min-width: 18px;
+        }
+
+        .bit.traversed {
+            background: rgba(6, 182, 212, 0.2);
+            color: #67e8f9;
+            border: 1px solid rgba(6, 182, 212, 0.4);
+        }
+
+        .bit.matched {
+            background: rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+            border: 1px solid var(--status-red);
+            box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
+        }
+
+        .bit.clean {
+            background: rgba(16, 185, 129, 0.25);
+            color: #6ee7b7;
+            border: 1px solid var(--status-green);
+        }
+
+        .tree-viewport {
+            width: 100%;
+            height: 540px;
+            overflow: auto;
+            background: #040811;
+            border-radius: 8px;
+            border: 1px solid var(--border-light);
+            position: relative;
+        }
+
+        .legend-bar {
+            display: flex;
+            gap: 18px;
+            font-size: 12px;
+            font-family: monospace;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 6px;
+        }
+
+        .ring-buffer {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .ring-slot {
+            background: #060b14;
+            border: 1px solid var(--border-light);
+            border-radius: 6px;
+            padding: 8px;
+            font-family: monospace;
+            font-size: 11px;
+            text-align: center;
+            color: var(--text-muted);
+        }
+
+        .ring-slot.head {
+            border-color: var(--status-green);
+            box-shadow: 0 0 0 1px var(--status-green);
+        }
+
+        .ring-slot.tail {
+            border-color: var(--status-red);
+            box-shadow: 0 0 0 1px var(--status-red);
+        }
+
+        .ring-slot strong {
+            color: var(--text-main);
+            display: block;
+            margin-bottom: 3px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="navbar">
+        <h1>THREAT INTELLIGENCE RADIX ENGINE</h1>
+        <div class="nav-info">
+            <span class="badge">O(W) BITWISE LPM ACTIVE</span>
+            <span id="nav_http">HTTP: --</span> | <span id="nav_udp">UDP: --</span>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- KPI Cards -->
+        <div class="kpi-row">
+            <div class="kpi-card">
+                <h3>Ingested Packets</h3>
+                <div class="kpi-value" style="color:#60a5fa" id="kpi_total">0</div>
+            </div>
+            <div class="kpi-card">
+                <h3>Clean Allowed</h3>
+                <div class="kpi-value" style="color:#34d399" id="kpi_allowed">0</div>
+            </div>
+            <div class="kpi-card">
+                <h3>Threats Dropped</h3>
+                <div class="kpi-value" style="color:#f87171" id="kpi_dropped">0</div>
+            </div>
+            <div class="kpi-card">
+                <h3>Tree Latency</h3>
+                <div class="kpi-value" style="color:#fbbf24" id="kpi_ops">0.0 µs</div>
+            </div>
+        </div>
+
+        <!-- FULL BINARY RADIX TREE VISUALIZER -->
+        <div class="panel">
+            <div class="panel-header">
+                <h2>Whole Binary Radix Tree Topology (All Active CIDR Branches)</h2>
+                <div class="controls">
+                    <input id="eval_ip" placeholder="Inspect IP (e.g. 192.168.1.140)" style="width:210px;">
+                    <button class="btn-blue" onclick="evaluateCustomIp()">Trace in Tree</button>
+                    <button id="btn_mode_bitwise" class="btn-active" onclick="setTreeMode('bitwise')">Full 32-Bit
+                        Bitwise Tree</button>
+                    <button id="btn_mode_compressed" onclick="setTreeMode('compressed')">Compressed Radix Tree
+                        (Patricia)</button>
+                </div>
+            </div>
+
+            <div class="legend-bar">
+                <span><span class="legend-dot" style="background:#3b82f6;"></span>Root / Internal Bit Node</span>
+                <span><span class="legend-dot" style="background:#ef4444;"></span>Banned CIDR Prefix Node</span>
+                <span><span class="legend-dot" style="background:#06b6d4;"></span>Active Packet Traversal Path</span>
+                <span><span class="legend-dot" style="background:#10b981;"></span>Clean Packet Exit (Allowed)</span>
+                <span id="lpm_verdict" style="margin-left:auto; font-weight:600; color:#94a3b8;">Awaiting packet
+                    trace...</span>
+            </div>
+
+            <div class="bit-strip" id="bit_strip"></div>
+
+            <div class="tree-viewport">
+                <svg id="radix_svg"></svg>
+            </div>
+        </div>
+
+        <!-- ACTIVE THREAT INTELLIGENCE SIGNATURES -->
+        <div class="panel">
+            <div class="panel-header">
+                <h2>Active Threat Intelligence Signatures</h2>
+                <div class="controls">
+                    <input id="cidr_in" placeholder="Subnet (e.g. 10.0.0.0/8)">
+                    <input id="rule_in" placeholder="Signature Name">
+                    <button class="btn-blue" onclick="addCidrRule()">Deploy Rule</button>
+                    <button class="btn-red" onclick="resetRules()">Reset Defaults</button>
+                </div>
+            </div>
+            <div style="overflow-y: auto; max-height: 380px;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th class="t-num">#</th>
+                            <th>Canonical CIDR Subnet</th>
+                            <th>Prefix Mask</th>
+                            <th>Threat Intelligence Signature</th>
+                            <th>Truncated Binary Prefix</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rules_tbody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- BOTTOM ROW: RING BUFFER & LIVE TRAFFIC STREAM -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>Telemetry Ring Buffer (O(1) Circular Queue)</h2>
+                </div>
+                <div class="ring-buffer" id="ring_slots"></div>
+                <div style="overflow-y: auto; max-height: 280px;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Blocked Target</th>
+                                <th>Matched Signature</th>
+                            </tr>
+                        </thead>
+                        <tbody id="drop_logs"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>Live Traffic Ingestion Stream</h2>
+                    <button class="btn-blue" onclick="simulateBurst(25)">Simulate +25 Packets</button>
+                </div>
+                <div style="overflow-y: auto; max-height: 350px;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Source IP</th>
+                                <th>Proto</th>
+                                <th>Verdict</th>
+                                <th>Quick Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="devices_tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentTreeMode = 'bitwise';
+        let latestRules = [];
+        let latestTrace = null;
+
+        function setTreeMode(mode) {
+            currentTreeMode = mode;
+            document.getElementById('btn_mode_bitwise').className = (mode === 'bitwise') ? 'btn-active' : '';
+            document.getElementById('btn_mode_compressed').className = (mode === 'compressed') ? 'btn-active' : '';
+            renderWholeRadixTree(latestRules, latestTrace);
+        }
+
+        function formatBinary(binStr) {
+            let formatted = "";
+            for (let i = 0; i < Math.min(binStr.length, 24); i += 8) {
+                formatted += binStr.substring(i, i + 8) + " ";
+            }
+            return formatted.trim() + (binStr.length > 16 ? "..." : "");
+        }
+
+        // Builds the complete Radix Tree in memory from all active rules + active trace
+        function buildFullTrie(rules, trace) {
+            const root = {
+                id: "ROOT", bit: "R", label: "ROOT", depth: 0,
+                left: null, right: null,
+                banned: false, rules: [],
+                traceStatus: null
+            };
+
+            // 1. Insert all CIDR rules into the tree
+            (rules || []).forEach(r => {
+                let curr = root;
+                const prefix = r.prefix || "";
+                for (let i = 0; i < prefix.length; i++) {
+                    const b = prefix[i];
+                    if (b === '0') {
+                        if (!curr.left) curr.left = {
+                            id: prefix.slice(0, i + 1), bit: '0', label: '0', depth: i + 1,
+                            left: null, right: null, banned: false, rules: [], traceStatus: null
+                        };
+                        curr = curr.left;
+                    } else if (b === '1') {
+                        if (!curr.right) curr.right = {
+                            id: prefix.slice(0, i + 1), bit: '1', label: '1', depth: i + 1,
+                            left: null, right: null, banned: false, rules: [], traceStatus: null
+                        };
+                        curr = curr.right;
+                    }
+                }
+                curr.banned = true;
+                const mask = r.cidr.includes('/') ? '/' + r.cidr.split('/')[1] : '/32';
+                curr.rules.push({ cidr: r.cidr, mask: mask, name: r.name });
+            });
+
+            // 2. Overlay the active packet's traversal path onto the full tree
+            if (trace && trace.steps && trace.steps.length > 0) {
+                root.traceStatus = 'TRAVERSED';
+                let curr = root;
+                for (let i = 0; i < trace.steps.length; i++) {
+                    const s = trace.steps[i];
+                    const b = s.bit;
+                    if (b === '0') {
+                        if (!curr.left) curr.left = {
+                            id: "EXIT_" + (i + 1), bit: '0', label: '0', depth: i + 1,
+                            left: null, right: null, banned: false, rules: [], traceStatus: 'CLEAN_EXIT', isExit: true
+                        };
+                        curr = curr.left;
+                    } else {
+                        if (!curr.right) curr.right = {
+                            id: "EXIT_" + (i + 1), bit: '1', label: '1', depth: i + 1,
+                            left: null, right: null, banned: false, rules: [], traceStatus: 'CLEAN_EXIT', isExit: true
+                        };
+                        curr = curr.right;
+                    }
+                    curr.traceStatus = s.status;
+                }
+            }
+            return root;
+        }
+
+        // Compresses single-child chains into Patricia/Radix segments
+        function compressTrie(node) {
+            if (!node) return null;
+            let curr = node;
+            let combinedBits = node.bit === 'R' ? 'ROOT' : node.bit;
+
+            if (node.bit !== 'R') {
+                while (!curr.banned && !curr.isExit && ((curr.left && !curr.right) || (!curr.left && curr.right))) {
+                    const nextChild = curr.left || curr.right;
+                    combinedBits += nextChild.bit;
+                    curr = nextChild;
+                }
+            }
+
+            return {
+                id: curr.id,
+                bit: curr.bit,
+                label: combinedBits.length > 8 ? combinedBits.slice(0, 6) + ".." + combinedBits.slice(-2) : combinedBits,
+                fullBits: combinedBits,
+                depth: curr.depth,
+                banned: curr.banned,
+                isExit: curr.isExit,
+                rules: curr.rules,
+                traceStatus: curr.traceStatus,
+                left: compressTrie(curr.left),
+                right: compressTrie(curr.right)
+            };
+        }
+
+        function renderWholeRadixTree(rules, trace) {
+            const svg = document.getElementById('radix_svg');
+            if (!rules || rules.length === 0) {
+                svg.setAttribute('viewBox', '0 0 900 300');
+                svg.style.width = '100%';
+                svg.style.height = '100%';
+                svg.innerHTML = `<text x="450" y="150" fill="#64748b" font-family="monospace" font-size="13" text-anchor="middle">No active CIDR rules in Radix Tree.</text>`;
+                return;
+            }
+
+            const rawRoot = buildFullTrie(rules, trace);
+
+            if (currentTreeMode === 'bitwise') {
+                // FULL 32-BIT BITWISE TREE (Left-to-Right Planar Layout)
+                let leafCount = 0;
+                const rowGap = 38;
+                const colGap = 44;
+                const leftPad = 55;
+                const topPad = 45;
+
+                function assignCoordinates(u) {
+                    if (!u) return;
+                    u.x = leftPad + u.depth * colGap;
+                    if (!u.left && !u.right) {
+                        u.y = topPad + leafCount * rowGap;
+                        leafCount++;
+                    } else {
+                        if (u.left) assignCoordinates(u.left);
+                        if (u.right) assignCoordinates(u.right);
+                        if (u.left && u.right) u.y = (u.left.y + u.right.y) / 2;
+                        else if (u.left) u.y = u.left.y;
+                        else u.y = u.right.y;
+                    }
+                }
+                assignCoordinates(rawRoot);
+
+                const totalWidth = leftPad + 32 * colGap + 340;
+                const totalHeight = Math.max(500, topPad + leafCount * rowGap + 40);
+                svg.setAttribute('viewBox', `0 0 ${totalWidth} ${totalHeight}`);
+                svg.style.width = `${totalWidth}px`;
+                svg.style.height = `${totalHeight}px`;
+
+                let edgesHtml = "";
+                let nodesHtml = "";
+                let guidesHtml = "";
+
+                // Draw Octet Bit Depth Guides (Bits 0, 8, 16, 24, 32)
+                [0, 8, 12, 16, 21, 22, 23, 24, 25, 32].forEach(d => {
+                    const gx = leftPad + d * colGap;
+                    const isOctet = (d % 8 === 0);
+                    guidesHtml += `<line x1="${gx}" y1="20" x2="${gx}" y2="${totalHeight - 15}" stroke="${isOctet ? '#1e293b' : '#0f172a'}" stroke-dasharray="${isOctet ? '4,4' : '2,4'}" stroke-width="1"/>`;
+                    guidesHtml += `<text x="${gx}" y="15" fill="${isOctet ? '#60a5fa' : '#475569'}" font-size="10" font-family="monospace" text-anchor="middle">Bit ${d}</text>`;
+                });
+
+                function drawNode(u) {
+                    if (!u) return;
+                    [u.left, u.right].forEach(child => {
+                        if (!child) return;
+                        let edgeColor = "#1e293b";
+                        let edgeWidth = 1.6;
+                        if (child.traceStatus === 'BANNED_MATCH') { edgeColor = "#ef4444"; edgeWidth = 3; }
+                        else if (child.traceStatus === 'CLEAN_EXIT') { edgeColor = "#10b981"; edgeWidth = 3; }
+                        else if (child.traceStatus === 'TRAVERSED') { edgeColor = "#06b6d4"; edgeWidth = 2.8; }
+                        else { edgeColor = "#334155"; }
+
+                        edgesHtml += `<line x1="${u.x}" y1="${u.y}" x2="${child.x}" y2="${child.y}" stroke="${edgeColor}" stroke-width="${edgeWidth}"/>`;
+                        drawNode(child);
+                    });
+
+                    let fill = "#0d1527";
+                    let stroke = "#3b82f6";
+                    let r = u.depth === 0 ? 12 : 8;
+
+                    if (u.banned) {
+                        fill = "#450a0a"; stroke = "#ef4444"; r = 10;
+                    }
+                    if (u.traceStatus === 'BANNED_MATCH') {
+                        fill = "#ef4444"; stroke = "#fecaca"; r = 12;
+                        nodesHtml += `<circle cx="${u.x}" cy="${u.y}" r="17" fill="none" stroke="#ef4444" stroke-width="2" opacity="0.6"/>`;
+                    } else if (u.traceStatus === 'CLEAN_EXIT') {
+                        fill = "#065f46"; stroke = "#10b981"; r = 11;
+                        nodesHtml += `<circle cx="${u.x}" cy="${u.y}" r="16" fill="none" stroke="#10b981" stroke-width="2" opacity="0.6"/>`;
+                    } else if (u.traceStatus === 'TRAVERSED') {
+                        fill = "#083344"; stroke = "#06b6d4"; r = Math.max(r, 9);
+                    }
+
+                    nodesHtml += `<circle cx="${u.x}" cy="${u.y}" r="${r}" fill="${fill}" stroke="${stroke}" stroke-width="2"/>`;
+                    nodesHtml += `<text x="${u.x}" y="${u.y + 3.5}" fill="#fff" font-size="${u.depth === 0 ? 10 : 9}" font-family="monospace" font-weight="bold" text-anchor="middle">${u.bit}</text>`;
+
+                    if (u.banned && u.rules.length > 0) {
+                        const labelText = u.rules.map(rl => `${rl.cidr} (${rl.name})`).join(" | ");
+                        const isLeaf = !u.left && !u.right;
+                        const lx = isLeaf ? (u.x + 15) : u.x;
+                        const ly = isLeaf ? (u.y + 4) : (u.y - 14);
+                        const anchor = isLeaf ? "start" : "middle";
+                        nodesHtml += `<text x="${lx}" y="${ly}" fill="#fca5a5" font-size="10.5" font-family="monospace" font-weight="600" text-anchor="${anchor}">${labelText}</text>`;
+                    } else if (u.isExit) {
+                        nodesHtml += `<text x="${u.x + 15}" y="${u.y + 4}" fill="#6ee7b7" font-size="10.5" font-family="monospace" font-weight="600">CLEAN EXIT (Allowed)</text>`;
+                    }
+                }
+
+                drawNode(rawRoot);
+                svg.innerHTML = guidesHtml + edgesHtml + nodesHtml;
+
+            } else {
+                // COMPRESSED RADIX TREE (Top-Down Patricia Hierarchy View)
+                const compRoot = compressTrie(rawRoot);
+                let leafIdx = 0;
+                const colSpacing = 125;
+                const levelSpacing = 78;
+
+                function layoutCompressed(u, level) {
+                    if (!u) return;
+                    u.y = 45 + level * levelSpacing;
+                    if (!u.left && !u.right) {
+                        u.x = 70 + leafIdx * colSpacing;
+                        leafIdx++;
+                    } else {
+                        if (u.left) layoutCompressed(u.left, level + 1);
+                        if (u.right) layoutCompressed(u.right, level + 1);
+                        if (u.left && u.right) u.x = (u.left.x + u.right.x) / 2;
+                        else if (u.left) u.x = u.left.x;
+                        else u.x = u.right.x;
+                    }
+                }
+                layoutCompressed(compRoot, 0);
+
+                const totalWidth = Math.max(1200, 100 + leafIdx * colSpacing);
+                const totalHeight = 520;
+                svg.setAttribute('viewBox', `0 0 ${totalWidth} ${totalHeight}`);
+                svg.style.width = `${totalWidth}px`;
+                svg.style.height = `${totalHeight}px`;
+
+                let edgesHtml = "";
+                let nodesHtml = "";
+
+                function drawComp(u) {
+                    if (!u) return;
+                    [u.left, u.right].forEach(child => {
+                        if (!child) return;
+                        let edgeColor = "#334155";
+                        let edgeWidth = 2;
+                        if (child.traceStatus === 'BANNED_MATCH') { edgeColor = "#ef4444"; edgeWidth = 3; }
+                        else if (child.traceStatus === 'CLEAN_EXIT') { edgeColor = "#10b981"; edgeWidth = 3; }
+                        else if (child.traceStatus === 'TRAVERSED') { edgeColor = "#06b6d4"; edgeWidth = 3; }
+
+                        edgesHtml += `<line x1="${u.x}" y1="${u.y}" x2="${child.x}" y2="${child.y}" stroke="${edgeColor}" stroke-width="${edgeWidth}"/>`;
+                        drawComp(child);
+                    });
+
+                    let fill = u.banned ? "#450a0a" : "#0d1527";
+                    let stroke = u.banned ? "#ef4444" : "#3b82f6";
+                    if (u.traceStatus === 'BANNED_MATCH') { fill = "#ef4444"; stroke = "#fecaca"; }
+                    else if (u.traceStatus === 'CLEAN_EXIT') { fill = "#065f46"; stroke = "#10b981"; }
+                    else if (u.traceStatus === 'TRAVERSED') { fill = "#083344"; stroke = "#06b6d4"; }
+
+                    const boxW = Math.max(46, u.label.length * 7.5 + 14);
+                    nodesHtml += `<rect x="${u.x - boxW / 2}" y="${u.y - 13}" width="${boxW}" height="26" rx="6" fill="${fill}" stroke="${stroke}" stroke-width="2"/>`;
+                    nodesHtml += `<text x="${u.x}" y="${u.y + 4}" fill="#fff" font-size="10.5" font-family="monospace" font-weight="bold" text-anchor="middle">${u.label}</text>`;
+
+                    if (u.banned && u.rules.length > 0) {
+                        const r = u.rules[0];
+                        nodesHtml += `<text x="${u.x}" y="${u.y + 27}" fill="#f87171" font-size="10" font-family="monospace" font-weight="bold" text-anchor="middle">${r.cidr}</text>`;
+                        nodesHtml += `<text x="${u.x}" y="${u.y + 40}" fill="#94a3b8" font-size="9.5" font-family="monospace" text-anchor="middle">${r.name.slice(0, 18)}</text>`;
+                    } else if (u.isExit) {
+                        nodesHtml += `<text x="${u.x}" y="${u.y + 28}" fill="#34d399" font-size="10" font-family="monospace" font-weight="bold" text-anchor="middle">CLEAN EXIT</text>`;
+                    }
+                }
+                drawComp(compRoot);
+                svg.innerHTML = edgesHtml + nodesHtml;
+            }
+        }
+
+        async function pollTelemetry() {
+            try {
+                const res = await fetch('/api/telemetry');
+                const data = await res.json();
+
+                document.getElementById('nav_http').innerText = `HTTP: ${data.config.host_ip}:${data.config.http_port}`;
+                document.getElementById('nav_udp').innerText = `UDP: ${data.config.host_ip}:${data.config.udp_port}`;
+                document.getElementById('kpi_total').innerText = data.total_processed.toLocaleString();
+                document.getElementById('kpi_allowed').innerText = data.total_allowed.toLocaleString();
+                document.getElementById('kpi_dropped').innerText = data.total_dropped.toLocaleString();
+                document.getElementById('kpi_ops').innerText = `${data.last_latency_us} µs`;
+
+                latestRules = data.rules || [];
+                latestTrace = data.last_trace || null;
+
+                // Render 32-Bit Strip
+                const strip = document.getElementById('bit_strip');
+                if (latestTrace && latestTrace.binaryIp) {
+                    const stepsLen = latestTrace.steps ? latestTrace.steps.length : 0;
+                    strip.innerHTML = latestTrace.binaryIp.split('').map((bit, i) => {
+                        let cls = 'bit';
+                        if (i < stepsLen - 1) cls += ' traversed';
+                        else if (i === stepsLen - 1) cls += (latestTrace.allowed ? ' clean' : ' matched');
+                        return `<div class="${cls}" title="Bit ${i + 1}">${bit}</div>`;
+                    }).join('');
+                    document.getElementById('lpm_verdict').innerHTML = latestTrace.allowed
+                        ? `<span style="color:#34d399">✓ ALLOWED (${latestTrace.ip}) — Exited cleanly at Bit ${stepsLen}</span>`
+                        : `<span style="color:#f87171">✗ DROPPED (${latestTrace.ip}) — Matched [${latestTrace.rule}] at Bit ${stepsLen}</span>`;
+                } else {
+                    strip.innerHTML = Array.from({ length: 32 }, (_, i) => `<div class="bit">0</div>`).join('');
+                }
+
+                // Render the Whole Binary Radix Tree
+                renderWholeRadixTree(latestRules, latestTrace);
+
+                // Render Active Rules Table
+                document.getElementById('rules_tbody').innerHTML = latestRules.map((r, idx) => {
+                    const mask = r.cidr.includes('/') ? r.cidr.split('/')[1] : '32';
+                    return `<tr>
+                <td class="t-num">${idx + 1}</td>
+                <td class="t-cidr">${r.cidr}</td>
+                <td class="t-mask">/${mask} bits</td>
+                <td class="t-sig">${r.name}</td>
+                <td class="t-bin">${formatBinary(r.prefix)}</td>
+                <td><button class="btn-red" style="padding:4px 8px; font-size:10px;" onclick="removeRule('${r.cidr}')">Remove</button></td>
+            </tr>`;
+                }).join('');
+
+                // Render Ring Buffer Slots
+                document.getElementById('ring_slots').innerHTML = (data.ring_buffer || []).map((slot, idx) => {
+                    let cls = 'ring-slot';
+                    let ptr = [];
+                    if (idx === data.head) { cls += ' head'; ptr.push('H'); }
+                    if (idx === data.tail) { cls += ' tail'; ptr.push('T'); }
+                    const tag = ptr.length ? ` [${ptr.join('/')}]` : '';
+                    return `<div class="${cls}"><strong>Slot ${idx}${tag}</strong>${slot ? slot.ip : 'EMPTY'}</div>`;
+                }).join('');
+
+                // Render Drop Logs
+                document.getElementById('drop_logs').innerHTML = (data.recent_logs || []).map(l =>
+                    `<tr><td style="color:var(--text-muted);">${l.time}</td><td style="color:#f87171">${l.ip}</td><td style="color:#e2e8f0">${l.rule}</td></tr>`
+                ).join('');
+
+                // Render Live Traffic Stream
+                document.getElementById('devices_tbody').innerHTML = (data.recent_packets || []).map(p => {
+                    const sub = p.ip.split('.').slice(0, 3).join('.') + '.0/24';
+                    return `<tr>
+                <td style="color:var(--text-muted);">${p.time}</td>
+                <td>${p.ip}</td>
+                <td style="color:var(--text-muted);">${p.proto}</td>
+                <td style="color:${p.allowed ? '#34d399' : '#f87171'}; font-weight:600;">${p.allowed ? 'ALLOW' : 'DROP'}</td>
+                <td><button class="btn-red" style="padding:4px 8px; font-size:10px;" onclick="quickBan('${sub}')">Ban /24</button></td>
+            </tr>`;
+                }).join('');
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function evaluateCustomIp() {
+            const ip = document.getElementById('eval_ip').value.trim();
+            if (ip) {
+                await fetch(`/api/check?ip=${encodeURIComponent(ip)}`);
+                pollTelemetry();
+            }
+        }
+
+        document.getElementById('eval_ip').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') evaluateCustomIp();
+        });
+
+        async function addCidrRule() {
+            const cidr = document.getElementById('cidr_in').value.trim();
+            const name = document.getElementById('rule_in').value.trim() || 'Manual_Signature';
+            if (cidr) {
+                await fetch(`/api/ban?cidr=${encodeURIComponent(cidr)}&name=${encodeURIComponent(name)}`);
+                document.getElementById('cidr_in').value = '';
+                document.getElementById('rule_in').value = '';
+                pollTelemetry();
+            }
+        }
+
+        async function quickBan(cidr) {
+            await fetch(`/api/ban?cidr=${encodeURIComponent(cidr)}&name=SOC_Subnet_Ban`);
+            pollTelemetry();
+        }
+
+        async function removeRule(cidr) {
+            await fetch(`/api/remove?cidr=${encodeURIComponent(cidr)}`);
+            pollTelemetry();
+        }
+
+        async function resetRules() {
+            await fetch(`/api/reset`);
+            pollTelemetry();
+        }
+
+        async function simulateBurst(count) {
+            await fetch(`/api/simulate?count=${count}`);
+            pollTelemetry();
+        }
+
+        setInterval(pollTelemetry, 1000);
+        pollTelemetry();
+    </script>
+</body>
+
+</html>
